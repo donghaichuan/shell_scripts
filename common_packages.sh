@@ -26,7 +26,7 @@ Usage:
 EOF
 }
 
-# 添加centos的yum源
+# 添加centos7的yum源
 function add_centos7_repo(){
 	mkdir -p /etc/yum.repos.d/repo_bak
 	mv /etc/yum.repos.d/*.repo /etc/yum.repos.d/repo_bak/
@@ -136,8 +136,7 @@ function packages_download(){
                 nginx)
 		yum install --downloadonly --downloaddir=$(pwd)/packages/$package_name nginx &>/dev/null
 		if [ $? != 0 ];then
-		echo -e "\033[31m Package $package_name not found\033[0m"
-		exit 0
+			echo -e "\033[31m Package $package_name not found\033[0m"
 		fi
 		;;
 		*)
