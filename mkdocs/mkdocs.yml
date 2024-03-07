@@ -1,0 +1,22 @@
+theme:
+  name: 'material'
+
+  icon:
+    previous: fontawesome/solid/angle-left
+    next: fontawesome/solid/angle-right
+    repo: fontawesome/brands/gitlab
+
+site_name: Personal Docs 
+
+repo_name: release
+repo_url: https://gitlab.tsingj.local/re/release
+
+extra:
+  alternate:
+    - name: English
+      link: /en/ 
+      lang: en
+    - name: 简体中文
+      link: /zh-Hant/
+      lang: zh-Hant
+  homepage: https://example.local
