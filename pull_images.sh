@@ -20,6 +20,19 @@ image_name=(
     python:$image_tag
 )
 
+remote_registry=registry.k8s.io
+local_registry=harbor.tsingj.local/k8s
+image_tag=v1.26.3
+image_name=(
+    kube-apiserver:$image_tag
+    kube-controller-manager:$image_tag
+    kube-scheduler:$image_tag
+    kube-proxy:$image_tag
+    pause:3.9
+    etcd:3.5.6-0
+    coredns/coredns:v1.9.3
+)
+
 pull_amd64_image() {
     for i in ${image_name[@]}; do
         docker pull $remote_registry/$i --platform=amd64
