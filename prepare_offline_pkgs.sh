@@ -263,7 +263,47 @@ EOF
 save_ansible() {
     cpu_type
     rm -rf $LOCAL_PATH/ansible-$CPU_TYPE.tar.gz && cd $LOCAL_PATH/
-    tar -zcPf ansible-$CPU_TYPE.tar.gz ansible_rpm/ ansible_deb/
+    tee install_ansible.sh >/dev/null <<'EOF'
+#!/bin/bash
+source /etc/os-release
+
+# rpm包安装ansible
+install_ansible_rpm(){
+    sudo rpm -ivh ansible_rpm/*.rpm  --nodeps --force
+}
+
+# deb包安装ansible
+install_ansible_deb(){
+    sudo dpkg -i --force-depends ansible_deb/*.deb
+}
+
+# 默认执行的入口脚本
+main(){
+    case $ID in
+        centos|CentOS)
+        install_ansible_rpm
+        ;;
+        ubuntu|Ubuntu)
+        install_ansible_deb
+        ;;
+        sles|SLES)
+        install_ansible_rpm
+        ;;
+        neokylin)
+        install_ansible_rpm
+        ;;
+        *)
+	echo "Invalid system..."
+        exit 1
+        ;;
+    esac
+}
+
+# 启动脚本
+main
+EOF
+    chmod +x install_ansible.sh
+    tar -zcPf ansible-$CPU_TYPE.tar.gz ansible_rpm/ ansible_deb/ install_ansible.sh
     rsync -avzP $LOCAL_PATH/ansible-$CPU_TYPE.tar.gz $RSYNC_SERVER/$CPU_TYPE/ansible/
     if [ $? == 0 ]; then
         info Ansible成功打包上传到:http://$DL_SERVER
