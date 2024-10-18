@@ -292,6 +292,11 @@ main(){
         neokylin)
         install_ansible_rpm
         ;;
+        kylin)
+        python3_version=$(python3 -V | awk '{print $2}' | awk -F'.' '{print $1"."$2}')
+        install_ansible_rpm
+        rm -rf /usr/bin/python3 && ln -s /usr/bin/python$python3_version /usr/bin/python3
+        ;;
         *)
 	echo "Invalid system..."
         exit 1
@@ -334,6 +339,7 @@ cd /mnt/nfs-kernel-server && rm -rf *
 apt-get update
 pkg_names=(
 nfs-kernel-server 
+rpcbind
 ipvsadm 
 ipset 
 tmux 

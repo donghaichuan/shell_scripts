@@ -1,0 +1,38 @@
+# 定义镜像
+images:
+  redis: re_release/redis:7.2.3
+
+# 定义镜像仓库地址
+repository: harbor.tsingj.local
+
+# 定义拉取镜像的策略
+imagePullPolicy: IfNotPresent
+
+# 定义redis的密码
+password: 123456
+
+# 定义哨兵对外暴露方式nodePort和端口号
+expose:
+  type: nodePort
+  nodePort:
+    sentinel: 26379
+
+# 定义pod容忍度
+tolerations:
+- key: "node-role.kubernetes.io/master"
+  operator: "Exists"
+  effect: "NoSchedule"
+
+# 定义容器运行权限
+securityContext:
+  privileged: false
+  runAsRoot: false
+
+# 定义pod资源配额
+resources:
+  limits:
+    cpu: 2
+    memory: 4Gi
+  requests:
+    cpu: 100m
+    memory: 128Mi

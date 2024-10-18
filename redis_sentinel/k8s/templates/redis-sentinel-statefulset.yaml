@@ -1,0 +1,141 @@
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sentinel
+  namespace: {{ .Release.Namespace }}
+spec:
+  clusterIP: None
+  ports:
+  - port: 26379
+    targetPort: 26379
+    name: sentinel
+  selector:
+    app: sentinel
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: sentinel-service
+  namespace: {{ .Release.Namespace }}
+spec:
+  {{ if eq .Values.expose.type "nodePort" }}
+  type: NodePort
+  {{ else }}
+  type: ClusterIP
+  {{ end}}
+  ports:
+  - port: 26379
+    targetPort: 26379
+    name: sentinel
+    {{ if eq .Values.expose.type "nodePort" }}
+    nodePort: {{ .Values.expose.nodePort.sentinel }}
+    {{ end }}
+  selector:
+    app: sentinel
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: sentinel
+  namespace: {{ .Release.Namespace }}
+spec:
+  serviceName: sentinel
+  replicas: 3
+  selector:
+    matchLabels:
+      app: sentinel
+  template:
+    metadata:
+      labels:
+        app: sentinel
+    spec:
+      initContainers:
+      - name: config
+        image: {{ .Values.repository }}/{{ .Values.images.redis }}
+        imagePullPolicy: {{ .Values.imagePullPolicy }}
+        {{ if .Values.securityContext.privileged }}
+        securityContext:
+          privileged: true
+        {{ end }}
+        env:
+        - name: REDIS_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: redis-secret
+              key: redis_password
+        command: [ "sh", "-c" ]
+        args:
+          - |
+
+            nodes=redis-0.redis,redis-1.redis,redis-2.redis
+            loop=$(echo $nodes | sed -e "s/,/\n/g")
+
+            for i in $loop
+            do
+                # Wait until Redis is ready
+                until redis-cli -h $i -a "${REDIS_PASSWORD}" --no-auth-warning ping | grep PONG; do
+                  echo "Waiting for Redis to be ready..."
+                  sleep 5
+                done
+                echo "finding master at $i"
+                MASTER=$(redis-cli -h $i -a "$REDIS_PASSWORD" --no-auth-warning --raw info replication | awk '{print $1}' | grep master_host: | cut -d ":" -f2)
+                if [ "$MASTER" = "" ]; then
+                    echo "no master found"
+                else
+                    echo "found $MASTER"
+                    break
+                fi
+            done
+
+            echo "port 26379
+            sentinel monitor mymaster $MASTER 6379 2
+            sentinel resolve-hostnames yes
+            sentinel announce-hostnames yes
+            sentinel down-after-milliseconds mymaster 5000
+            sentinel failover-timeout mymaster 60000
+            sentinel parallel-syncs mymaster 1
+            sentinel auth-pass mymaster $REDIS_PASSWORD
+            requirepass $REDIS_PASSWORD
+            " > /etc/redis/sentinel.conf
+            # cat /etc/redis/sentinel.conf
+        volumeMounts:
+        - name: redis-config
+          mountPath: /etc/redis/
+      {{ if .Values.securityContext.runAsRoot }}
+      securityContext:
+        runAsUser: 0
+        runAsGroup: 0
+        fsGroup: 0
+      {{ end }}
+      tolerations:
+      {{ toYaml .Values.tolerations | nindent 8 }}
+      containers:
+      - name: sentinel
+        image: {{ .Values.repository }}/{{ .Values.images.redis }}
+        imagePullPolicy: {{ .Values.imagePullPolicy }}
+        {{ if .Values.securityContext.privileged }}
+        securityContext:
+          privileged: true
+        {{ end }}
+        command: ["redis-sentinel"]
+        args: ["/etc/redis/sentinel.conf"]
+        ports:
+        - containerPort: 26379
+          name: sentinel
+        volumeMounts:
+        - name: redis-config
+          mountPath: /etc/redis/
+        resources:
+        {{ toYaml .Values.resources | nindent 12 }}
+      {{ if .Values.securityContext.runAsRoot }}
+      securityContext:
+        runAsUser: 0
+        runAsGroup: 0
+        fsGroup: 0
+      {{ end }}
+      tolerations:
+      {{ toYaml .Values.tolerations | nindent 8 }}
+      volumes:
+      - name: redis-config
+        emptyDir: {}
