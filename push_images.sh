@@ -9,8 +9,8 @@ new_private_registry="harbor.test.local/dhc"
 # 遍历每个镜像并重新标记并上传到新私有仓库
 for image in $images; do
     old_image=$image
-    # 获取镜像最后一个斜杠后边的部分
-    image_suffix=$(echo $image | awk -F '/' '{print $NF}')
+    # 获取镜像第一个斜杠后边的所有部分
+    image_suffix=$(echo $image | cut -d '/' -f 2-)
     new_image=$new_private_registry/$image_suffix
     docker tag $old_image $new_image
     docker push $new_image
