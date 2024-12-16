@@ -1,0 +1,117 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: bind9-configmap
+data:
+  local.zone: |-
+      $TTL 8h
+      @ IN SOA ns.dmz.local. hostmaster.dmz.local. (
+                                2022070601 ; serial number
+                                1d         ; refresh period
+                                3h         ; retry period
+                                3d         ; expire time
+                                3h )       ; minimum TTL
+
+                  IN      NS      ns.dmz.local.
+      ns              A       10.90.3.191
+
+      ; 配置真实域名解析,hub.{{ domain_name }} 和 icbc.{{ domain_name }}
+      hub             A       10.90.3.192
+      icbc            A       192.168.200.8
+
+      ; 配置泛域名解析, *.tvs.{{ domain_name }} 和 *.tss.{{ domain_name }}
+      $ORIGIN tvs.dmz.local.
+      *               A       10.90.3.192
+
+  named.conf: |-
+      options {
+              directory "/var/cache/bind";
+
+              dnssec-validation auto;
+
+              listen-on-v6 { any; };
+      };
+
+      zone "dmz.local" {
+              type master;
+              file "/etc/bind/local.zone";
+              allow-query { any; };
+      };
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: bind9
+  labels:
+    app: bind9
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: bind9
+  template:
+    metadata:
+      labels:
+        app: bind9
+    spec:
+      containers:
+        - name: bind9
+          image: harbor.tsingj.local/k8s/bind9:9.16-20.04_edge
+          ports:
+          - containerPort: 53
+            name: dns
+            protocol: UDP
+          - containerPort: 53
+            name: dns-tcp
+            protocol: TCP
+          securityContext:
+            privileged: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: "1.0"
+              memory: 1Gi
+          volumeMounts:
+            - name: bind9-config
+              mountPath: /etc/bind
+            - name: date-config
+              mountPath: /etc/localtime
+      volumes:
+        - name: bind9-config
+          configMap:
+            name: bind9-configmap
+            items:
+              - key: local-zone
+                path: local-zone
+              - key: named.conf
+                path: named.conf
+        - name: date-config
+          hostPath:
+            path: /usr/share/zoneinfo/Asia/Shanghai
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: bind9
+  labels:
+    app: bind9
+spec:
+  selector:
+    app: bind9
+  type: NodePort
+  ports:
+  - name: bind9-udp
+    port: 53
+    protocol: UDP
+    targetPort: 53
+    nodePort: 53
+  - name: bind9-tcp
+    port: 53
+    protocol: TCP
+    targetPort: 53
+    nodePort: 53
