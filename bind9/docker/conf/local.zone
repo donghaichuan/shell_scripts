@@ -1,0 +1,20 @@
+$TTL 8h
+@ IN SOA ns.tsingj.local. hostmaster.tsingj.local. (
+                          2022070601 ; serial number
+                          1d         ; refresh period
+                          3h         ; retry period
+                          3d         ; expire time
+                          3h )       ; minimum TTL
+
+	    IN	    NS	    ns.tsingj.local.
+ns              A    	<hostip>
+
+; 配置真实域名解析,hub.tsingj.local 和 icbc.tsingj.local
+hub             A       192.168.200.7
+icbc            A       192.168.200.8
+
+; 配置泛域名解析, *.tvs.tsingj.local 和 *.tss.tsingj.local
+$ORIGIN tvs.tsingj.local.
+*               A       192.168.200.9
+$ORIGIN tss.tsingj.local.
+*               A       192.168.200.10
